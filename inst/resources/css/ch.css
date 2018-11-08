@@ -1,5 +1,38 @@
+@import url('https://fonts.googleapis.com/css?family=Alegreya:400,400i,700,700i%7CAlegreya+SC%7CSource+Code+Pro:400,700');
+@import url('https://www.fontify.me/wf/b6bc65b66f76d2b1608c4b993731a2df'); /* font88040 aka STKaiti */
+
 :root {
   --background: lightsteelblue;
+}
+
+/* fonts */
+body, blockquote {
+  font-family: 'Alegreya', STKaiti, "华文楷体", font88040, serif;
+  font-size: 11pt;
+  font-weight: 400;
+}
+
+code {
+  font-family: 'Source Code Pro', STKaiti, "华文楷体", font88040, monospace;
+  font-weight: 400;
+}
+
+pre, code {
+  font-size: 9pt;
+}
+
+.smallcaps {
+  font-family: 'Alegreya SC', 'AlegreyaSC', STKaiti, "华文楷体", font88040, serif;
+  font-variant: small-caps;
+}
+
+code .smallcaps, .abstract .smallcaps {
+  font-family: inherit;
+}
+
+.abstract {
+  font-family: STKaiti, "华文楷体", font88040, serif;
+  font-size: 11pt;
 }
 
 /* viewer */
