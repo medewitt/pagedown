@@ -5,6 +5,20 @@
   --background: lightsteelblue;
 }
 
+@page {
+  size: 6in 9in;
+  margin: 4pc 4pc 7pc 4pc;
+}
+
+/* page breaks */
+.level1 {
+  page-break-before: right;
+}
+
+div.abstract {
+  page-break-before: always;
+}
+
 /* fonts */
 body, blockquote {
   font-family: 'Alegreya', STKaiti, "华文楷体", font88040, serif;
