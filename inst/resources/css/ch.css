@@ -49,6 +49,34 @@ code .smallcaps, .abstract .smallcaps {
   font-size: 11pt;
 }
 
+/* main text content */
+.level1 p {
+  margin: 8pt 0;
+  text-align: justify;
+  line-height: 1.25;
+  hyphens: auto; /* wait for Chrome 72 */
+}
+
+a {
+  text-decoration: none;
+}
+
+a.uri {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 9pt;
+  color: #2e3192;
+}
+
+p a[href^="#"] {
+  color: #ae2230;
+  font-family: 'Alegreya';
+}
+
+.footnote-ref sup {
+  line-height: 0.75;
+}
+
+
 /* viewer */
 @media screen {
   .pagedjs_page {
