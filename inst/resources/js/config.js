@@ -34,6 +34,18 @@
     }
   }
 
+  // This function is dedicated to table of contents anchors elements
+  // First, it tests whether referenced sections are unnumbered
+  // If the section is unnumbered, it adds an extra class toc-section-unnumbered
+  async function detectUnnumberedSections() {
+    var anchors = document.querySelectorAll('.toc a');
+    for (var a of anchors) {
+      if (document.querySelector(a.getAttribute('href')).classList.contains('unnumbered')) {
+        a.classList.add('toc-section-unnumbered');
+      }
+    }
+  }
+
   /* A factory returning a function that appends short titles spans.
      The text content of these spans are reused for running titles (see default.css).
      Argument: level - An integer between 1 and 6.
@@ -74,6 +86,7 @@
       await expandLinksInLoft();
       await Promise.all([
         addLeadersSpans(),
+        detectUnnumberedSections(),
         appendShortTitles1(),
         appendShortTitles2()
       ]);
