@@ -67,7 +67,7 @@ a.uri, a.email {
   color: #2e3192;
 }
 
-p a[href^="#"] {
+a[href^="#"] {
   color: #ae2230;
   font-family: 'Alegreya';
 }
