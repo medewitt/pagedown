@@ -193,7 +193,9 @@ h1 > .header-section-number {
   border-top: 4pt solid black;
 }
 
-/* table of contents */
+/* table of contents,
+   list of tables,
+   list of figures */
 .toc * {
   color: black !important;
 }
@@ -211,7 +213,7 @@ h1 > .header-section-number {
   font-weight: normal;
 }
 
-.toc-section-number {
+.toc-section-number, .list-ref-number {
   padding-right: 1em;
 }
 

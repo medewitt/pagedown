@@ -20,9 +20,8 @@
     var items = document.querySelectorAll('.lof li, .lot li');
     for (var item of items) {
       var anchor = item.firstChild;
-      anchor.innerText = item.innerText;
-      item.innerText = '';
-      item.append(anchor);
+      anchor.innerHTML = '<span class="list-ref-number">' + anchor.innerText + '</span>' + anchor.nextSibling.wholeText;
+      anchor.nextSibling.replaceWith('');
     }
   }
 
