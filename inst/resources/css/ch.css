@@ -233,6 +233,10 @@ h1 > .header-section-number {
   padding-left: 1em;
 }
 
+.lot ul, .lof ul {
+  padding-left: 1.55em;
+}
+
 .leaders::before {
   word-spacing: 0.3em;
 }
