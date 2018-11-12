@@ -97,6 +97,9 @@ Paged.registerHandlers(class extends Paged.Handler {
 
     for (var ref of this.splittedParagraphRefs) {
       var paragraphFirstPage = document.querySelector('[data-split-to="' + ref + '"]');
+      if (!paragraphFirstPage) {
+        continue;
+      }
       // We test whether the paragraph is empty
       // see https://github.com/rstudio/pagedown/issues/23#issue-376548000
       if (paragraphFirstPage.innerText === "") {
