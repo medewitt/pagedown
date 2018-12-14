@@ -157,7 +157,7 @@ h1 > .header-section-number {
   border-bottom: 1pt solid black;
   line-height: 30pt;
   position: relative;
-  top: -4pt;
+  top: -5pt;
 }
 
 .toc > h1, .unnumbered > h1 {
@@ -168,7 +168,7 @@ h1 > .header-section-number {
   display: block;
   height: 32pt;
   position: relative;
-  top: -4pt;
+  top: -5pt;
   content: " ";
 }
 
