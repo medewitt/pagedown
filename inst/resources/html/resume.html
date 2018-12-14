@@ -9,11 +9,6 @@
     $for(author-meta)$<meta name="author" content="$author-meta$" />$endfor$
     $if(date-meta)$<meta name="date" content="$date-meta$" />$endif$
     <title>$if(title-prefix)$$title-prefix$ - $endif$$pagetitle$</title>
-    <style type="text/css">
-    #main > h1, #aside > h1, #disclaimer > h2 {
-      display: none;
-    }
-    </style>
 
     $for(header-includes)$
     $header-includes$
@@ -45,6 +40,10 @@ $body$
   var title = document.getElementById('title').querySelector('h2');
   title.parentNode.replaceChild(create_el('h1', false, title.innerText), title);
 
+  // add the class .aside to #aside
+  el = document.getElementById('aside');
+  if (el) el.className += ' aside';
+
   // tweak class names of sections, and add icons
   els = document.getElementById('main').querySelectorAll('.level2');
   for (i = 0; i < els.length; i++) {
@@ -67,9 +66,10 @@ $body$
     var ps = el.querySelectorAll('p');
     // move the date paragraph to the date div
     if (ps.length >= 3) {
-      s = ps[2].innerText.split('-');
+      s = ps[2].innerText;
+      s = s.split(s.match(/-/g).length > 1 ? ' - ' : '-');
       el.removeChild(ps[2]);
-      for (j = 0; j < s.length; j++) {
+      for (j = 0; j < s.length && j < 2; j++) {
         el.children[0].appendChild(create_el('span', false, s[j]))
       }
     }
@@ -90,15 +90,18 @@ $body$
       el.removeChild(p);
     })(el.children[2].firstElementChild);
     // move the rest of content in a block into the last div of the details div
-    while (el.children[2].nextSibling) {
-      el.children[2].lastElementChild.append(el.children[2].nextSibling);
+    s = el.children[2];
+    while (j = s.nextSibling) {
+      if (j.className === 'aside') { s = j; continue; }
+      el.children[2].lastElementChild.append(j);
     }
   }
 })();
 </script>
-    $for(include-after)$
-    $include-after$
-    $endfor$
+
+$for(include-after)$
+$include-after$
+$endfor$
 
   </body>
 </html>
