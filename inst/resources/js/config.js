@@ -91,6 +91,10 @@
         appendShortTitles2()
       ]);
       await runMathJax();
+    },
+    after: () => {
+      // scroll to the last position before the page is reloaded
+      window.scrollTo(0, sessionStorage.getItem('pagedown-scroll'));
     }
   };
 })();
