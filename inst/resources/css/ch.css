@@ -113,6 +113,10 @@
   }
 }
 
+.reset-page {
+  counter-reset: page;
+}
+
 /* page breaks */
 
 
