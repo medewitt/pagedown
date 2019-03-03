@@ -1,6 +1,9 @@
 # pagedown
 
 [![Travis build status](https://travis-ci.org/rstudio/pagedown.svg?branch=master)](https://travis-ci.org/rstudio/pagedown)
+[![Downloads from the RStudio CRAN mirror](https://cranlogs.r-pkg.org/badges/pagedown)](https://cran.r-project.org/package=pagedown)
+
+<a href="https://github.com/rstudio/pagedown"><img src="https://user-images.githubusercontent.com/163582/51942716-66be4180-23dd-11e9-8dbc-fdb4f465d1c2.png" alt="pagedown logo" align="right" /></a>
 
 Paginate the HTML Output of R Markdown with CSS for Print. You only need a modern web browser (e.g., Google Chrome) to generate PDF. No need to install LaTeX to get beautiful PDFs.
 
@@ -19,6 +22,10 @@ Below are some existing R Markdown output formats and examples.
 ## Paged HTML documents (`pagedown::html_paged`)
 
 [![A paged HTML document](https://user-images.githubusercontent.com/163582/47673682-58b11880-db83-11e8-87fd-b5e753af7288.png)](https://pagedown.rbind.io)
+
+### Journal of Statistical Software article (`pagedown::jss_paged`)
+
+[![A JSS article](https://user-images.githubusercontent.com/19177171/51005498-5b46cb80-153f-11e9-9026-4b50a9f3d3f1.png)](https://pagedown.rbind.io/jss-paged/)
 
 ## Resume (`pagedown::html_resume`)
 
@@ -41,6 +48,12 @@ Below are some existing R Markdown output formats and examples.
 ## Letters (`pagedown::html_letter`)
 
 [![A letter in HTML](https://user-images.githubusercontent.com/163582/47872372-61e8f200-dddc-11e8-839b-d8e8ef8f51eb.png)](https://pagedown.rbind.io/html-letter)
+
+## Other examples
+
+- "Template of Exec Summaries with pagedown" by Joshua David Barillas: https://github.com/jdbarillas/executive_summary
+
+- Deepak Kumar Tanwar's CV: https://dktanwar.github.io/CV/ds.html
 
 ## Authors and contributors
 
