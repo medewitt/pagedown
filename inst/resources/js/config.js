@@ -91,6 +91,20 @@
   var appendShortTitles1 = appendShortTitleSpans(1);
   var appendShortTitles2 = appendShortTitleSpans(2);
 
+  const HTMLWidgetsReady = new Promise((resolve) => {
+    window.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        if (window.HTMLWidgets) {
+          HTMLWidgets.addPostRenderHandler(resolve);
+        } else {
+          resolve();
+        }
+      },
+      {capture: true, once: true}
+    );
+  });
+
   window.PagedConfig = {
     before: async () => {
       await moveToFrontMatter();
@@ -101,6 +115,7 @@
         appendShortTitles1(),
         appendShortTitles2()
       ]);
+      await HTMLWidgetsReady;
       await runMathJax();
     },
     after: () => {
