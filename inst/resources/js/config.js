@@ -92,12 +92,47 @@
   var appendShortTitles1 = appendShortTitleSpans(1);
   var appendShortTitles2 = appendShortTitleSpans(2);
 
+  /* Support for HTMLWidgets
+     HTMLWidgets are rendered twice:
+     - before Paged.js: this ensures that sufficient rooms is reserved for the widgets
+     - they rebuilt after Paged.js: without this step, all the event listeners are lost
+       (i.e. interactivity is lost)
+  */
+  window.clonedWidgets = [];
+
+  // This function is run before HTMLWidgets are built
+  async function cloneWidgets() {
+    const widgets = document.querySelectorAll('.html-widget[id]');
+    for (const widget of widgets) {
+      clonedWidgets.push({
+        id: widget.id,
+        widget: widget.cloneNode()
+      });
+    }
+  }
+
+  // a helper to retrieve the initial element
+  function getClonedWidgetFromId(id) {
+    for (const widget of clonedWidgets) {
+      if (widget.id === id) {
+        return widget;
+      }
+    }
+  }
+
+  // This promise will be evaluated before Paged.js
   const HTMLWidgetsReady = new Promise((resolve) => {
     window.addEventListener(
       'DOMContentLoaded',
       () => {
         if (window.HTMLWidgets) {
-          HTMLWidgets.addPostRenderHandler(resolve);
+          const staticRender = window.HTMLWidgets.staticRender;
+
+          window.HTMLWidgets.before = cloneWidgets;
+          window.HTMLWidgets.staticRender = () => {
+            window.HTMLWidgets.before().then(staticRender());
+          };
+          window.HTMLWidgets.addPostRenderHandler(resolve);
         } else {
           resolve();
         }
@@ -105,6 +140,26 @@
       {capture: true, once: true}
     );
   });
+
+  // This async function is run after Paged.js
+  function rebuildHTMLWidgets() {
+    let widgets = document.querySelectorAll('.html-widget-static-bound');
+    for (let widget of widgets) {
+      if (widget.id) {
+        const clone = getClonedWidgetFromId(widget.id);
+        widget.insertAdjacentElement('afterend', clone.widget);
+        widget.remove();
+      }
+    }
+    return new Promise(resolve => {
+      if (window.HTMLWidgets) {
+        window.HTMLWidgets.addPostRenderHandler(resolve);
+        window.HTMLWidgets.staticRender();
+      } else {
+        resolve();
+      }
+    });
+  }
 
   window.PagedConfig = {
     before: async () => {
@@ -117,19 +172,22 @@
         appendShortTitles2()
       ]);
       await HTMLWidgetsReady;
+      await saveHTMLWidgetsData();
       await runMathJax();
     },
     after: () => {
-      // pagedownListener is a binder added by the chrome_print function
-      // this binder exists only when chrome_print opens the html file
-      if (window.pagedownListener) {
-        // the html file is opened for printing
-        // call the binder to signal to the R session that Paged.js has finished
-        pagedownListener('');
-      } else {
-        // scroll to the last position before the page is reloaded
-        window.scrollTo(0, sessionStorage.getItem('pagedown-scroll'));
-      }
+      rebuildHTMLWidgets().then(() => {
+        // pagedownListener is a binder added by the chrome_print function
+        // this binder exists only when chrome_print opens the html file
+        if (window.pagedownListener) {
+          // the html file is opened for printing
+          // call the binder to signal to the R session that Paged.js has finished
+          pagedownListener('');
+        } else {
+          // scroll to the last position before the page is reloaded
+          window.scrollTo(0, sessionStorage.getItem('pagedown-scroll'));
+        }
+      });
     }
   };
 })();
