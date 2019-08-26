@@ -294,6 +294,7 @@ print_page = function(
 ) {
   # init values
   coords = NULL
+  pagedjs = FALSE
 
   ws$onOpen(function(event) {
     ws$send(to_json(list(id = 1, method = "Runtime.enable")))
@@ -355,27 +356,29 @@ print_page = function(
       },
       # Command #8 received - No callback
       NULL,
-      # Command #9 received -> callback: command #10 DOM.getDocument
-      ws$send(to_json(list(id = 10, method = "DOM.getDocument"))),
-      # Command #10 received -> callback: command #11 DOM.querySelector
+      # Command #9 received -> callback: command #10 DOM.enable
+      ws$send(to_json(list(id = 10, method = "DOM.enable"))),
+      # Command #10 received -> callback: command #11 DOM.getDocument
+      ws$send(to_json(list(id = 11, method = "DOM.getDocument"))),
+      # Command #11 received -> callback: command #12 DOM.querySelector
       ws$send(to_json(list(
-        id = 11, method = "DOM.querySelector",
+        id = 12, method = "DOM.querySelector",
         params = list(nodeId = msg$result$root$nodeId, selector = selector)
       ))),
       {
-        # Command 11 received -> callback: command #12 DOM.getBoxModel
+        # Command 12 received -> callback: command #13 DOM.getBoxModel
         if (msg$result$nodeId == 0) {
           token$error <- 'No element in the HTML page corresponds to the `selector` value.'
           reject(token$error)
         } else {
           ws$send(to_json(list(
-            id = 12, method = "DOM.getBoxModel",
+            id = 13, method = "DOM.getBoxModel",
             params = list(nodeId = msg$result$nodeId)
           )))
         }
       },
       {
-        # Command 12 received -> callback: command #13 Emulation.setDeviceMetricsOverride
+        # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
         coords <<- msg$result$model[[box_model]]
         device_metrics = list(
           width = ceiling(coords[5]),
@@ -384,11 +387,11 @@ print_page = function(
           mobile = FALSE
         )
         ws$send(to_json(list(
-          id = 13, params = device_metrics, method = 'Emulation.setDeviceMetricsOverride'
+          id = 14, params = device_metrics, method = 'Emulation.setDeviceMetricsOverride'
         )))
       },
       {
-        # Command #13 received -> callback: command #14 Page.captureScreenshot
+        # Command #14 received -> callback: command #15 Page.captureScreenshot
         opts = as.list(options)
 
         origin = as.list(coords[1:2])
@@ -406,11 +409,11 @@ print_page = function(
         opts$format = format
 
         ws$send(to_json(list(
-          id = 14, params = opts, method = 'Page.captureScreenshot'
+          id = 15, params = opts, method = 'Page.captureScreenshot'
         )))
       },
       {
-        # Command #14 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
+        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
         writeBin(jsonlite::base64_dec(msg$result$data), output)
         resolve(output)
         token$done = TRUE
@@ -436,16 +439,19 @@ print_page = function(
         Sys.sleep(wait)
         opts = as.list(options)
         payload = jsonlite::fromJSON(msg$params$payload)
-        if (verbose >= 1 && payload$pagedjs) {
+        if (pagedjs <<- payload$pagedjs && verbose >= 1) {
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         if (format == 'pdf') {
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
-            id = 14, params = opts, method = 'Page.printToPDF'
+            id = 15, params = opts, method = 'Page.printToPDF'
           )))
         } else {
-          ws$send(to_json(list(id = 9, method = "DOM.enable")))
+          ws$send(to_json(list(
+            id = 9, method = 'Emulation.setEmulatedMedia',
+            params = list(media = if (pagedjs) 'print' else 'screen')
+          )))
         }
       }
     }
