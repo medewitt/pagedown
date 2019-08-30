@@ -430,18 +430,7 @@ print_page = function(
         )))
       },
       {
-        # Command #14 received -> callback: command #15 Runtime.evaluate scrollIntoView()
-        # This command is useless for NON Paged.js documents
-        # However, the cost is negligeable and the benefit is that
-        # we can keep a linear flow for each type of screenshot
-        element = if (payload$pagedjs) sprintf('#page-%i', screenshots_count + 1L) else 'body'
-        ws$send(to_json(list(
-          id = 15, method = 'Runtime.evaluate',
-          params = list(expression = sprintf('document.querySelector("%s").scrollIntoView();', element))
-        )))
-      },
-      {
-        # Command #15 received -> callback: command #16 Page.captureScreenshot
+        # Command #14 received -> callback: command #15 Page.captureScreenshot
         if (verbose >= 1) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
           paste0(deparse(opts), collapse = '\n ')
@@ -450,13 +439,13 @@ print_page = function(
         params$format = format
 
         ws$send(to_json(list(
-          id = 16, params = params, method = 'Page.captureScreenshot'
+          id = 15, params = params, method = 'Page.captureScreenshot'
         )))
       },
       {
-        # Command #16 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
+        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
         screenshots_count <<- screenshots_count + 1L
-        if (payload$pagedjs) {
+        if (payload$pagedjs && !identical(format, 'pdf')) {
           outfile = file.path(xfun::sans_ext(output), xfun::with_ext(paste0("page-", screenshots_count), format))
         } else {
           outfile = output
@@ -464,7 +453,7 @@ print_page = function(
         writeBin(jsonlite::base64_dec(msg$result$data), outfile)
         if (screenshots_count < payload$length) {
           ws$send(to_json(list(
-            id = 15, method = 'Runtime.evaluate',
+            id = 14, method = 'Runtime.evaluate',
             params = list(expression = sprintf('document.querySelector("#page-%i").scrollIntoView();', screenshots_count + 1L))
           )))
         } else {
@@ -498,9 +487,10 @@ print_page = function(
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         if (format == 'pdf') {
+          payload$length <<- 1L
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
-            id = 16, params = opts, method = 'Page.printToPDF'
+            id = 15, params = opts, method = 'Page.printToPDF'
           )))
         } else {
           ws$send(to_json(list(
