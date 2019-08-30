@@ -22,11 +22,10 @@
       // call the binding to signal to the R session that Paged.js has finished
       pagedownListener(JSON.stringify({
         pagedjs: true,
-        pages: flow.total,
         elapsedtime: flow.performance,
         width: flow.pages[0].pagebox.offsetWidth,
         height: flow.pages[0].pagebox.offsetHeight,
-        length: flow.pages.length
+        length: flow.total
       }));
     } else {
       // scroll to the last position before the page is reloaded
