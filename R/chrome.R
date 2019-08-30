@@ -293,8 +293,9 @@ print_page = function(
   options = list(), selector, box_model, scale, resolve, reject
 ) {
   # init values
-  coords = NULL
-  pagedjs = FALSE
+  opts = as.list(options)
+  payload = list() # binding's payload
+  screenshots_count = 0L
 
   ws$onOpen(function(event) {
     ws$send(to_json(list(id = 1, method = "Runtime.enable")))
@@ -356,11 +357,16 @@ print_page = function(
       },
       # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
+      # The following commands (command #9 to #xx) are only called for screenshots
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = "DOM.enable"))),
       # Command #10 received -> callback: command #11 DOM.getDocument
       ws$send(to_json(list(id = 11, method = "DOM.getDocument"))),
       # Command #11 received -> callback: command #12 DOM.querySelector
+      if (payload$pagedjs && !identical(selector, 'body')) {
+        selector = 'body'
+        warning('Parameter `selector` ignored', call. = FALSE)
+      }
       ws$send(to_json(list(
         id = 12, method = "DOM.querySelector",
         params = list(nodeId = msg$result$root$nodeId, selector = selector)
@@ -379,21 +385,7 @@ print_page = function(
       },
       {
         # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
-        coords <<- msg$result$model[[box_model]]
-        device_metrics = list(
-          width = ceiling(coords[5]),
-          height = ceiling(coords[6]),
-          deviceScaleFactor = 1,
-          mobile = FALSE
-        )
-        ws$send(to_json(list(
-          id = 14, params = device_metrics, method = 'Emulation.setDeviceMetricsOverride'
-        )))
-      },
-      {
-        # Command #14 received -> callback: command #15 Page.captureScreenshot
-        opts = as.list(options)
-
+        coords = msg$result$model[[box_model]]
         origin = as.list(coords[1:2])
         names(origin) = c('x', 'y')
 
@@ -401,19 +393,49 @@ print_page = function(
         names(dims) = c('width', 'height')
 
         clip = c(origin, dims, list(scale = scale))
-        opts = merge_list(list(clip = clip), opts)
-        if (verbose >= 1) message(
-          'Screenshot captured with the following value for the `options` parameter:\n',
-          paste0(deparse(opts), collapse = '\n ')
-        )
-        opts$format = format
+        opts <<- merge_list(list(clip = clip), opts)
+
+        device_metrics =
+          if (payload$pagedjs) {
+            # For screenshots of Paged.js documents,
+            # adjust the device dimensions to the page
+            payload[c('width', 'height')]
+            if (length(options)) warning('Parameter `options` ignored.', call. = FALSE)
+          } else {
+            list(width = ceiling(opts$clip$x + opts$clip$width),
+                 height = ceiling(opts$clip$y + opts$clip$height))
+          }
+
+        device_metrics$deviceScaleFactor = 1
+        device_metrics$mobile = FALSE
 
         ws$send(to_json(list(
-          id = 15, params = opts, method = 'Page.captureScreenshot'
+          id = 14, method = 'Emulation.setDeviceMetricsOverride', params = device_metrics
         )))
       },
       {
-        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
+        # Command #14 received -> callback: command #15 Runtime.evaluate scrollIntoView()
+        selector = if (payload$pagedjs) sprintf('#page-%i', screenshots_count + 1L) else 'body'
+        ws$send(to_json(list(
+          id = 15, method = 'Runtime.evaluate',
+          params = list(expression = sprintf('document.querySelector("%s").scrollIntoView();', selector))
+        )))
+      },
+      {
+        # Command #15 received -> callback: command #16 Page.captureScreenshot
+        if (verbose >= 1 && !payload$pagedjs) message(
+          'Screenshot captured with the following value for the `options` parameter:\n',
+          paste0(deparse(opts), collapse = '\n ')
+        )
+        params = opts
+        params$format = format
+
+        ws$send(to_json(list(
+          id = 16, params = params, method = 'Page.captureScreenshot'
+        )))
+      },
+      {
+        # Command #16 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
         writeBin(jsonlite::base64_dec(msg$result$data), output)
         resolve(output)
         token$done = TRUE
@@ -437,15 +459,14 @@ print_page = function(
       }
       if (method == "Runtime.bindingCalled") {
         Sys.sleep(wait)
-        opts = as.list(options)
-        payload = jsonlite::fromJSON(msg$params$payload)
-        if (pagedjs <<- payload$pagedjs && verbose >= 1) {
+        payload <<- jsonlite::fromJSON(msg$params$payload)
+        if (payload$pagedjs && verbose >= 1) {
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         if (format == 'pdf') {
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
-            id = 15, params = opts, method = 'Page.printToPDF'
+            id = 16, params = opts, method = 'Page.printToPDF'
           )))
         } else {
           ws$send(to_json(list(
