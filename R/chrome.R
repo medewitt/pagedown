@@ -362,17 +362,26 @@ print_page = function(
       ws$send(to_json(list(id = 10, method = "DOM.enable"))),
       # Command #10 received -> callback: command #11 DOM.getDocument
       ws$send(to_json(list(id = 11, method = "DOM.getDocument"))),
-      # Command #11 received -> callback: command #12 DOM.querySelector
-      if (payload$pagedjs && !identical(selector, 'body')) {
-        selector = 'body'
-        warning('Parameter `selector` ignored', call. = FALSE)
-      }
-      ws$send(to_json(list(
-        id = 12, method = "DOM.querySelector",
-        params = list(nodeId = msg$result$root$nodeId, selector = selector)
-      ))),
+      {
+        # Command #11 received -> callback: command #12 DOM.querySelector
+        # This command is useless when the document uses Paged.js
+        # However, the cost is negligeable and the benefit is that
+        # we can keep a linear flow for each type of screenshot
+        if (payload$pagedjs && !identical(selector, 'body')) {
+          selector = 'body'
+          warning('Parameter `selector` ignored', call. = FALSE)
+        }
+
+        ws$send(to_json(list(
+          id = 12, method = "DOM.querySelector",
+          params = list(nodeId = msg$result$root$nodeId, selector = selector)
+        )))
+      },
       {
         # Command 12 received -> callback: command #13 DOM.getBoxModel
+        # This command is useless when the document uses Paged.js
+        # However, the cost is negligeable and the benefit is that
+        # we can keep a linear flow for each type of screenshot
         if (msg$result$nodeId == 0) {
           token$error <- 'No element in the HTML page corresponds to the `selector` value.'
           reject(token$error)
@@ -385,29 +394,32 @@ print_page = function(
       },
       {
         # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
-        coords = msg$result$model[[box_model]]
-        origin = as.list(coords[1:2])
-        names(origin) = c('x', 'y')
-
-        dims = as.list(coords[5:6] - coords[1:2])
-        names(dims) = c('width', 'height')
+        if (payload$pagedjs) {
+          origin = list(x = 0, y = 0)
+          dims = payload[c('width', 'height')]
+        } else {
+          coords = msg$result$model[[box_model]]
+          origin = as.list(coords[1:2])
+          names(origin) = c('x', 'y')
+          dims = as.list(coords[5:6] - coords[1:2])
+          names(dims) = c('width', 'height')
+        }
 
         clip = c(origin, dims, list(scale = scale))
-        opts <<- merge_list(list(clip = clip), opts)
 
-        device_metrics =
-          if (payload$pagedjs) {
-            # For screenshots of Paged.js documents,
-            # adjust the device dimensions to the page
-            payload[c('width', 'height')]
-            if (length(options)) warning('Parameter `options` ignored.', call. = FALSE)
-          } else {
-            list(width = ceiling(opts$clip$x + opts$clip$width),
-                 height = ceiling(opts$clip$y + opts$clip$height))
-          }
+        if (payload$pagedjs) {
+          opts <<- list(clip = clip)
+          if (length(options)) warning('Parameter `options` ignored.', call. = FALSE)
+        } else {
+          opts <<- merge_list(list(clip = clip), opts)
+        }
 
-        device_metrics$deviceScaleFactor = 1
-        device_metrics$mobile = FALSE
+        device_metrics = list(
+          width = ceiling(opts$clip$x + opts$clip$width),
+          height = ceiling(opts$clip$y + opts$clip$height),
+          deviceScaleFactor = 1,
+          mobile = FALSE
+        )
 
         ws$send(to_json(list(
           id = 14, method = 'Emulation.setDeviceMetricsOverride', params = device_metrics
@@ -415,15 +427,18 @@ print_page = function(
       },
       {
         # Command #14 received -> callback: command #15 Runtime.evaluate scrollIntoView()
-        selector = if (payload$pagedjs) sprintf('#page-%i', screenshots_count + 1L) else 'body'
+        # This command is useless for NON Paged.js documents
+        # However, the cost is negligeable and the benefit is that
+        # we can keep a linear flow for each type of screenshot
+        element = if (payload$pagedjs) sprintf('#page-%i', screenshots_count + 1L) else 'body'
         ws$send(to_json(list(
           id = 15, method = 'Runtime.evaluate',
-          params = list(expression = sprintf('document.querySelector("%s").scrollIntoView();', selector))
+          params = list(expression = sprintf('document.querySelector("%s").scrollIntoView();', element))
         )))
       },
       {
         # Command #15 received -> callback: command #16 Page.captureScreenshot
-        if (verbose >= 1 && !payload$pagedjs) message(
+        if (verbose >= 1) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
           paste0(deparse(opts), collapse = '\n ')
         )
