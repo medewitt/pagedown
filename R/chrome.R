@@ -351,7 +351,7 @@ print_page = function(
         if (!isTRUE(msg$result$result$value)) {
           ws$send(to_json(list(
             id = 8, method = "Runtime.evaluate",
-            params = list(expression = "pagedownReady.then(() => {pagedownListener('{\"pagedjs\":false}');})")
+            params = list(expression = "pagedownReady.then(() => {pagedownListener('{\"pagedjs\":false,\"length\":1}');})")
           )))
         }
       },
@@ -455,11 +455,26 @@ print_page = function(
       },
       {
         # Command #16 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
-        writeBin(jsonlite::base64_dec(msg$result$data), output)
-        resolve(output)
-        token$done = TRUE
+        screenshots_count <<- screenshots_count + 1L
+        if (payload$pagedjs) {
+          outfile = file.path(xfun::sans_ext(output), xfun::with_ext(paste0("page-", screenshots_count), format))
+        } else {
+          outfile = output
+        }
+        writeBin(jsonlite::base64_dec(msg$result$data), outfile)
+        if (screenshots_count < payload$length) {
+          ws$send(to_json(list(
+            id = 15, method = 'Runtime.evaluate',
+            params = list(expression = sprintf('document.querySelector("#page-%i").scrollIntoView();', screenshots_count + 1L))
+          )))
+        } else {
+          resolve(if (payload$pagedjs) xfun::sans_ext(output) else output)
+          token$done = TRUE
+        }
       }
     )
+
+    # Events listeners
     if (!is.null(method)) {
       if (method == "Network.responseReceived") {
         status = as.numeric(msg$params$response$status)
