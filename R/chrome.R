@@ -431,12 +431,20 @@ print_page = function(
       },
       {
         # Command #14 received -> callback: command #15 Page.captureScreenshot
-        if (verbose >= 1) message(
+        if (verbose >= 1 && !payload$pagedjs) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
           paste0(deparse(opts), collapse = '\n ')
         )
+
         params = opts
         params$format = format
+
+        # adapt the origin after scrolling
+        if (!is.null(msg$result$result)) { # msg$result$result is only present after scrollIntoView()
+          origin = jsonlite::fromJSON(msg$result$result$value)
+          params$clip$x = origin$x
+          params$clip$y = origin$y
+        }
 
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
@@ -454,7 +462,7 @@ print_page = function(
         if (screenshots_count < payload$length) {
           ws$send(to_json(list(
             id = 14, method = 'Runtime.evaluate',
-            params = list(expression = sprintf('document.querySelector("#page-%i").scrollIntoView();', screenshots_count + 1L))
+            params = list(expression = sprintf('document.querySelector("#page-%i").scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});', screenshots_count + 1L))
           )))
         } else {
           resolve(if (payload$pagedjs) xfun::sans_ext(output) else output)
@@ -481,11 +489,11 @@ print_page = function(
         )))
       }
       if (method == "Runtime.bindingCalled") {
-        Sys.sleep(wait)
         payload <<- jsonlite::fromJSON(msg$params$payload)
         if (payload$pagedjs && verbose >= 1) {
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
+        Sys.sleep(wait)
         if (format == 'pdf') {
           payload$length <<- 1L
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
