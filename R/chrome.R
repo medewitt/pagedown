@@ -410,6 +410,10 @@ print_page = function(
         if (payload$pagedjs) {
           opts <<- list(clip = clip)
           if (length(options)) warning('Parameter `options` ignored.', call. = FALSE)
+          output_dir = xfun::sans_ext(output)
+          if (dir.exists(output_dir))
+            stop("Directory ", output_dir, " already exists.", call. = FALSE)
+          dir.create(output_dir)
         } else {
           opts <<- merge_list(list(clip = clip), opts)
         }
