@@ -491,7 +491,7 @@ print_page = function(
       if (method == "Runtime.bindingCalled") {
         payload <<- jsonlite::fromJSON(msg$params$payload)
         if (payload$pagedjs && verbose >= 1) {
-          message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
+          message("Rendered ", payload$length, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         Sys.sleep(wait)
         if (format == 'pdf') {
