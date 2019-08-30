@@ -354,7 +354,7 @@ print_page = function(
           )))
         }
       },
-      # Command #8 received - No callback
+      # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = "DOM.enable"))),
@@ -450,7 +450,7 @@ print_page = function(
         } else {
           ws$send(to_json(list(
             id = 9, method = 'Emulation.setEmulatedMedia',
-            params = list(media = if (pagedjs) 'print' else 'screen')
+            params = list(media = 'print')
           )))
         }
       }
