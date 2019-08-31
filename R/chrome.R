@@ -42,7 +42,8 @@
 #' @param async Execute \code{chrome_print()} asynchronously? If \code{TRUE},
 #'   \code{chrome_print()} returns a \code{\link[promises]{promise}} value (the
 #'   \pkg{promises} package has to be installed in this case).
-#' @param media_screenshot Emulated media for screenshots.
+#' @param media Emulated media for screenshots. This parameter has no effect
+#'   when the parameter \code{format} is \code{"pdf"}.
 #' @references
 #' \url{https://developers.google.com/web/updates/2017/04/headless-chrome}
 #' @return Path of the output file (invisibly). If \code{async} is \code{TRUE}, this
@@ -53,7 +54,7 @@ chrome_print = function(
   format = c('pdf', 'png', 'jpeg'), options = list(), selector = 'body',
   box_model = c('border', 'content', 'margin', 'padding'), scale = 1, work_dir = tempfile(),
   timeout = 30, extra_args = c('--disable-gpu'), verbose = 0, async = FALSE,
-  media_screenshot = c('print', 'screen')
+  media = c('print', 'screen')
 ) {
   if (missing(browser)) browser = find_chrome() else {
     if (!file.exists(browser)) browser = Sys.which(browser)
@@ -131,7 +132,7 @@ chrome_print = function(
     warning('For "pdf" format, arguments `selector`, `box_model` and `scale` are ignored.', call. = FALSE)
 
   box_model = match.arg(box_model)
-  media_screenshot = match.arg(media_screenshot)
+  media = match.arg(media)
 
   pr = NULL
   res_fun = function(value) {} # default: do nothing
@@ -155,7 +156,7 @@ chrome_print = function(
   on.exit(close_ws())
   print_page(
     ws, url, output2, wait, verbose, token, format, options, selector,
-    box_model, scale, res_fun, rej_fun, media_screenshot
+    box_model, scale, res_fun, rej_fun, media
   )
 
   if (async) {
@@ -296,7 +297,7 @@ get_entrypoint = function(debug_port) {
 
 print_page = function(
   ws, url, output, wait, verbose, token, format, options = list(), selector,
-  box_model, scale, resolve, reject, media_screenshot
+  box_model, scale, resolve, reject, media
 ) {
   # init values
   opts = as.list(options)
@@ -426,10 +427,10 @@ print_page = function(
         params = opts
         params$format = format
 
-        # adapt the origin after scrolling.
+        # Adapt the origin after scrolling.
         # This scrolling is only used with Paged.js documents to loop on pages.
-        # See below, command #16: msg$result$result is only present after
-        # page.scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset})
+        # See below, command #16: msg$result$result$value is equivalent to
+        # the JavaScript object {x: window.pageXOffset, y: window.pageYOffset}
         if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
@@ -450,18 +451,19 @@ print_page = function(
           outfile = output
         }
         writeBin(jsonlite::base64_dec(msg$result$data), outfile)
-        if (screenshots_count < payload$length) {
-          ws$send(to_json(list(
-            id = 14, method = 'Runtime.evaluate',
-            params = list(expression = sprintf(
-              'document.querySelector("#page-%i > .pagedjs_sheet").scrollIntoView({behavior:"instant"});JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});',
-              screenshots_count + 1L
-            ))
-          )))
-        } else {
+        if (screenshots_count >= payload$length) {
           resolve(if (payload$pagedjs) output_dir else output)
           token$done = TRUE
+          return()
         }
+        ws$send(to_json(list(
+          id = 14, method = 'Runtime.evaluate',
+          params = list(expression = paste0(
+            sprintf('document.querySelector("#page-%i>.pagedjs_sheet")', screenshots_count + 1L),
+                            '.scrollIntoView({behavior:"instant"});',
+                    'JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});'
+          ))
+        )))
       }
     )
 
@@ -507,7 +509,7 @@ print_page = function(
             warning('Parameter `selector` ignored', call. = FALSE)
         }
         ws$send(to_json(list(
-          id = if (payload$pagedjs) 13 else 9, params = list(media = media_screenshot),
+          id = if (payload$pagedjs) 13 else 9, params = list(media = media),
           method = 'Emulation.setEmulatedMedia'
         )))
       }

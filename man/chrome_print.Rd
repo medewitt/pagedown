@@ -8,7 +8,7 @@ chrome_print(input, output = xfun::with_ext(input, format), wait = 2,
     browser = "google-chrome", format = c("pdf", "png", "jpeg"), options = list(), 
     selector = "body", box_model = c("border", "content", "margin", "padding"), 
     scale = 1, work_dir = tempfile(), timeout = 30, extra_args = c("--disable-gpu"), 
-    verbose = 0, async = FALSE, media_screenshot = c("print", "screen"))
+    verbose = 0, async = FALSE, media = c("print", "screen"))
 }
 \arguments{
 \item{input}{A URL or local file path to an HTML page, or a path to a local
@@ -64,7 +64,8 @@ from the Chrome processes and WebSocket connections.}
 \code{chrome_print()} returns a \code{\link[promises]{promise}} value (the
 \pkg{promises} package has to be installed in this case).}
 
-\item{media_screenshot}{Emulated media for screenshots.}
+\item{media}{Emulated media for screenshots. This parameter has no effect
+when the parameter \code{format} is \code{"pdf"}.}
 }
 \value{
 Path of the output file (invisibly). If \code{async} is \code{TRUE}, this
