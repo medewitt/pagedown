@@ -488,6 +488,8 @@ print_page = function(
         )))
       }
       if (method == 'Runtime.bindingCalled') {
+        # the payload object is defined in inst/resources/js/config.js
+        # in the function window.PagedConfig.after
         payload <<- jsonlite::fromJSON(msg$params$payload)
         if (payload$pagedjs && verbose >= 1) {
           message('Rendered ', payload$length, ' pages in ', payload$elapsedtime, ' milliseconds.')
