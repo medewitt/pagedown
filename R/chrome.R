@@ -359,8 +359,8 @@ print_page = function(
       },
       # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
-      # The following commands (command #9 to #15) are only called for screenshots
-      # The commands #9 to #12 are only called for screenshots of NON Paged.js documents
+      # The following commands (command #10 to #15) are only called for screenshots
+      # The commands #10 to #13 are only called for screenshots of NON Paged.js documents
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = "DOM.enable"))),
       # Command #10 received -> callback: command #11 DOM.getDocument
@@ -411,27 +411,21 @@ print_page = function(
       },
       {
         # Command #14 received -> callback: command #15 Page.captureScreenshot
-        if (verbose >= 1 && !payload$pagedjs) message(
+        if (verbose >= 1) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
           paste0(deparse(opts), collapse = '\n ')
         )
 
         params = opts
         params$format = format
-        params$fromSurface = FALSE
 
-        # adapt the origin after scrolling
+        # adapt the origin after scrolling, see below command #16
         # msg$result$result is only present after page.scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset})
         if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
           params$clip$y = origin$y
         }
-
-        if (verbose >= 1 && payload$pagedjs) message(
-          'Screenshot captured with the following parameters:\n',
-          paste0(deparse(params), collapse = '\n ')
-        )
 
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
