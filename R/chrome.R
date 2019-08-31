@@ -296,8 +296,8 @@ get_entrypoint = function(debug_port) {
 }
 
 print_page = function(
-  ws, url, output, wait, verbose, token, format, options = list(), selector,
-  box_model, scale, resolve, reject, media
+  ws, url, output, wait, verbose, token, format, options = list(),
+  selector, box_model, scale, resolve, reject, media
 ) {
   # init values
   opts = as.list(options)
@@ -367,14 +367,14 @@ print_page = function(
       # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
       # The following commands (command #10 to #15) are only called for screenshots
-      # The commands #10 to #13 are only called for screenshots of NON Paged.js documents
+      # The commands #10 to #13 are only called for screenshots of NON html_paged documents
       # Command #9 received -> callback: command #10 DOM.enable
-      ws$send(to_json(list(id = 10, method = "DOM.enable"))),
+      ws$send(to_json(list(id = 10, method = 'DOM.enable'))),
       # Command #10 received -> callback: command #11 DOM.getDocument
-      ws$send(to_json(list(id = 11, method = "DOM.getDocument"))),
+      ws$send(to_json(list(id = 11, method = 'DOM.getDocument'))),
       # Command #11 received -> callback: command #12 DOM.querySelector
       ws$send(to_json(list(
-        id = 12, method = "DOM.querySelector",
+        id = 12, method = 'DOM.querySelector',
         params = list(nodeId = msg$result$root$nodeId, selector = selector)
       ))),
       {
@@ -384,7 +384,7 @@ print_page = function(
           reject(token$error)
         } else {
           ws$send(to_json(list(
-            id = 13, method = "DOM.getBoxModel",
+            id = 13, method = 'DOM.getBoxModel',
             params = list(nodeId = msg$result$nodeId)
           )))
         }
@@ -423,9 +423,9 @@ print_page = function(
         params$format = format
 
         # Adapt the origin after scrolling.
-        # This scrolling is only used with Paged.js documents to loop on pages.
-        # See below, command #16: msg$result$result$value is equivalent the JSON
-        # representation of the JS object {x: window.pageXOffset, y: window.pageYOffset}
+        # This scrolling is only used with html_paged documents to loop on pages.
+        # msg$result$result$value is the JSON representation of the JS object
+        # {x: window.pageXOffset, y: window.pageYOffset} (see below)
         if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
