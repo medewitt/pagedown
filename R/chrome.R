@@ -42,6 +42,7 @@
 #' @param async Execute \code{chrome_print()} asynchronously? If \code{TRUE},
 #'   \code{chrome_print()} returns a \code{\link[promises]{promise}} value (the
 #'   \pkg{promises} package has to be installed in this case).
+#' @param media_screenshot Emulated media for screenshots.
 #' @references
 #' \url{https://developers.google.com/web/updates/2017/04/headless-chrome}
 #' @return Path of the output file (invisibly). If \code{async} is \code{TRUE}, this
@@ -51,7 +52,8 @@ chrome_print = function(
   input, output = xfun::with_ext(input, format), wait = 2, browser = 'google-chrome',
   format = c('pdf', 'png', 'jpeg'), options = list(), selector = 'body',
   box_model = c('border', 'content', 'margin', 'padding'), scale = 1, work_dir = tempfile(),
-  timeout = 30, extra_args = c('--disable-gpu'), verbose = 0, async = FALSE
+  timeout = 30, extra_args = c('--disable-gpu'), verbose = 0, async = FALSE,
+  media_screenshot = c('print', 'screen')
 ) {
   if (missing(browser)) browser = find_chrome() else {
     if (!file.exists(browser)) browser = Sys.which(browser)
@@ -129,6 +131,7 @@ chrome_print = function(
     warning('For "pdf" format, arguments `selector`, `box_model` and `scale` are ignored.', call. = FALSE)
 
   box_model = match.arg(box_model)
+  media_screenshot = match.arg(media_screenshot)
 
   pr = NULL
   res_fun = function(value) {} # default: do nothing
@@ -150,7 +153,10 @@ chrome_print = function(
 
   t0 = Sys.time(); token = new.env(parent = emptyenv())
   on.exit(close_ws())
-  print_page(ws, url, output2, wait, verbose, token, format, options, selector, box_model, scale, res_fun, rej_fun)
+  print_page(
+    ws, url, output2, wait, verbose, token, format, options, selector,
+    box_model, scale, res_fun, rej_fun, media_screenshot
+  )
 
   if (async) {
     on.exit()
@@ -289,8 +295,8 @@ get_entrypoint = function(debug_port) {
 }
 
 print_page = function(
-  ws, url, output, wait, verbose, token, format,
-  options = list(), selector, box_model, scale, resolve, reject
+  ws, url, output, wait, verbose, token, format, options = list(), selector,
+  box_model, scale, resolve, reject, media_screenshot
 ) {
   # init values
   opts = as.list(options)
@@ -406,7 +412,8 @@ print_page = function(
         )
 
         ws$send(to_json(list(
-          id = 14, method = 'Emulation.setDeviceMetricsOverride', params = device_metrics
+          id = 14, params = device_metrics,
+          method = 'Emulation.setDeviceMetricsOverride'
         )))
       },
       {
@@ -419,8 +426,10 @@ print_page = function(
         params = opts
         params$format = format
 
-        # adapt the origin after scrolling, see below command #16
-        # msg$result$result is only present after page.scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset})
+        # adapt the origin after scrolling.
+        # This scrolling is only used with Paged.js documents to loop on pages.
+        # See below, command #16: msg$result$result is only present after
+        # page.scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset})
         if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
@@ -432,7 +441,8 @@ print_page = function(
         )))
       },
       {
-        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file, repeat screenshot if needed
+        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file
+        # loop when taking screenshots of Paged.js documents
         screenshots_count <<- screenshots_count + 1L
         if (payload$pagedjs && !identical(format, 'pdf')) {
           outfile = file.path(output_dir, xfun::with_ext(paste0("page-", screenshots_count), format))
@@ -443,7 +453,10 @@ print_page = function(
         if (screenshots_count < payload$length) {
           ws$send(to_json(list(
             id = 14, method = 'Runtime.evaluate',
-            params = list(expression = sprintf('document.querySelector("#page-%i > .pagedjs_sheet").scrollIntoView({behavior:"instant"});JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});', screenshots_count + 1L))
+            params = list(expression = sprintf(
+              'document.querySelector("#page-%i > .pagedjs_sheet").scrollIntoView({behavior:"instant"});JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});',
+              screenshots_count + 1L
+            ))
           )))
         } else {
           resolve(if (payload$pagedjs) output_dir else output)
@@ -469,37 +482,34 @@ print_page = function(
           params = list(expression = "!!window.PagedPolyfill")
         )))
       }
-      if (method == "Runtime.bindingCalled") {
+      if (method == 'Runtime.bindingCalled') {
         payload <<- jsonlite::fromJSON(msg$params$payload)
         if (payload$pagedjs && verbose >= 1) {
-          message("Rendered ", payload$length, " pages in ", payload$elapsedtime, " milliseconds.")
+          message('Rendered ', payload$length, ' pages in ', payload$elapsedtime, ' milliseconds.')
         }
         Sys.sleep(wait)
-        if (format == 'pdf') {
+        if (identical(format, 'pdf')) {
           payload$length <<- 1L
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
             id = 15, params = opts, method = 'Page.printToPDF'
           )))
-        } else {
-          if (payload$pagedjs) {
-            if (dir.exists(output_dir)) {
-              token$error = paste("Directory", output_dir, "already exists.")
-              reject(token$error)
-              return()
-            }
-            dir.create(output_dir)
-            if (!identical(selector, 'body'))
-              warning('Parameter `selector` ignored', call. = FALSE)
-            if (length(options))
-              warning('Parameter `options` ignored.', call. = FALSE)
-            opts <<- list()
-          }
-          ws$send(to_json(list(
-            id = if (payload$pagedjs) 13 else 9, params = list(media = 'print'),
-            method = 'Emulation.setEmulatedMedia'
-          )))
+          return()
         }
+        if (payload$pagedjs) {
+          if (dir.exists(output_dir)) {
+            token$error = paste('Directory', output_dir, 'already exists.')
+            reject(token$error)
+            return()
+          }
+          dir.create(output_dir)
+          if (!identical(selector, 'body'))
+            warning('Parameter `selector` ignored', call. = FALSE)
+        }
+        ws$send(to_json(list(
+          id = if (payload$pagedjs) 13 else 9, params = list(media = media_screenshot),
+          method = 'Emulation.setEmulatedMedia'
+        )))
       }
     }
   })
