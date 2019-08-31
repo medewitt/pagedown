@@ -429,8 +429,8 @@ print_page = function(
 
         # Adapt the origin after scrolling.
         # This scrolling is only used with Paged.js documents to loop on pages.
-        # See below, command #16: msg$result$result$value is equivalent to
-        # the JavaScript object {x: window.pageXOffset, y: window.pageYOffset}
+        # See below, command #16: msg$result$result$value is equivalent the JSON
+        # representation of the JS object {x: window.pageXOffset, y: window.pageYOffset}
         if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
