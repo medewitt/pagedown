@@ -403,7 +403,7 @@ print_page = function(
         }
 
         clip = c(origin, dims, list(scale = scale))
-        opts <<- merge_list(list(clip = clip), opts)
+        opts <<- merge_list(list(clip = clip, format = format), opts)
 
         device_metrics = list(
           width = ceiling(opts$clip$x + opts$clip$width),
@@ -420,10 +420,9 @@ print_page = function(
       {
         # Command #14 received -> callback: command #15 Page.captureScreenshot
         params = opts
-        params$format = format
 
-        # Adapt the origin after scrolling.
-        # This scrolling is only used with html_paged documents to loop on pages.
+        # Adapt the origin after scroll.
+        # Scroll is only used with html_paged documents to loop on pages.
         # msg$result$result$value is the JSON representation of the JS object
         # {x: window.pageXOffset, y: window.pageYOffset} (see below)
         if (!is.null(msg$result$result)) {
@@ -431,14 +430,14 @@ print_page = function(
           params$clip$x = origin$x
           params$clip$y = origin$y
         }
-        to_opts = function(params) {
+        show_options = function(params) {
           opts = params[!(names(params) == 'format')]
           opts$clip$scale <- NULL
           opts
         }
         if (verbose >= 1) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
-          paste0(deparse(to_opts(params)), collapse = '\n ')
+          paste0(deparse(show_options(params)), collapse = '\n ')
         )
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
