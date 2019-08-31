@@ -302,7 +302,7 @@ print_page = function(
   # init values
   opts = as.list(options)
   payload = list() # binding's payload
-  screenshots_count = 0L
+  screenshots_count = 1L
   # only for screenshots of Paged.js documents:
   output_dir = paste0(xfun::sans_ext(output), '_screenshots')
 
@@ -444,7 +444,6 @@ print_page = function(
       {
         # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file
         # loop when taking screenshots of Paged.js documents
-        screenshots_count <<- screenshots_count + 1L
         if (payload$pagedjs && !identical(format, 'pdf')) {
           outfile = file.path(output_dir, xfun::with_ext(paste0("page-", screenshots_count), format))
         } else {
@@ -456,10 +455,11 @@ print_page = function(
           token$done = TRUE
           return()
         }
+        screenshots_count <<- screenshots_count + 1L
         ws$send(to_json(list(
           id = 14, method = 'Runtime.evaluate',
           params = list(expression = paste0(
-            sprintf('document.querySelector("#page-%i>.pagedjs_sheet")', screenshots_count + 1L),
+            sprintf('document.querySelector("#page-%i>.pagedjs_sheet")', screenshots_count),
                             '.scrollIntoView({behavior:"instant"});',
                     'JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});'
           ))
