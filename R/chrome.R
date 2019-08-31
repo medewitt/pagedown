@@ -419,11 +419,6 @@ print_page = function(
       },
       {
         # Command #14 received -> callback: command #15 Page.captureScreenshot
-        if (verbose >= 1) message(
-          'Screenshot captured with the following value for the `options` parameter:\n',
-          paste0(deparse(opts), collapse = '\n ')
-        )
-
         params = opts
         params$format = format
 
@@ -436,7 +431,15 @@ print_page = function(
           params$clip$x = origin$x
           params$clip$y = origin$y
         }
-
+        to_opts = function(params) {
+          opts = params[!(names(params) == 'format')]
+          opts$clip$scale <- NULL
+          opts
+        }
+        if (verbose >= 1) message(
+          'Screenshot captured with the following value for the `options` parameter:\n',
+          paste0(deparse(to_opts(params)), collapse = '\n ')
+        )
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
         )))
