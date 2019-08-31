@@ -296,6 +296,8 @@ print_page = function(
   opts = as.list(options)
   payload = list() # binding's payload
   screenshots_count = 0L
+  # only for screenshots of Paged.js documents:
+  output_dir = paste0(xfun::sans_ext(output), '_screenshots')
 
   ws$onOpen(function(event) {
     ws$send(to_json(list(id = 1, method = "Runtime.enable")))
@@ -358,32 +360,20 @@ print_page = function(
       # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
       # The following commands (command #9 to #15) are only called for screenshots
+      # The commands #9 to #12 are only called for screenshots of NON Paged.js documents
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = "DOM.enable"))),
       # Command #10 received -> callback: command #11 DOM.getDocument
       ws$send(to_json(list(id = 11, method = "DOM.getDocument"))),
-      {
-        # Command #11 received -> callback: command #12 DOM.querySelector
-        # This command is useless when the document uses Paged.js
-        # However, the cost is negligeable and the benefit is that
-        # we can keep a linear flow for each type of screenshot
-        if (payload$pagedjs && !identical(selector, 'body')) {
-          selector = 'body'
-          warning('Parameter `selector` ignored', call. = FALSE)
-        }
-
-        ws$send(to_json(list(
-          id = 12, method = "DOM.querySelector",
-          params = list(nodeId = msg$result$root$nodeId, selector = selector)
-        )))
-      },
+      # Command #11 received -> callback: command #12 DOM.querySelector
+      ws$send(to_json(list(
+        id = 12, method = "DOM.querySelector",
+        params = list(nodeId = msg$result$root$nodeId, selector = selector)
+      ))),
       {
         # Command 12 received -> callback: command #13 DOM.getBoxModel
-        # This command is useless when the document uses Paged.js
-        # However, the cost is negligeable and the benefit is that
-        # we can keep a linear flow for each type of screenshot
         if (msg$result$nodeId == 0) {
-          token$error <- 'No element in the HTML page corresponds to the `selector` value.'
+          token$error = 'No element in the HTML page corresponds to the `selector` value.'
           reject(token$error)
         } else {
           ws$send(to_json(list(
@@ -406,17 +396,7 @@ print_page = function(
         }
 
         clip = c(origin, dims, list(scale = scale))
-
-        if (payload$pagedjs) {
-          opts <<- list(clip = clip)
-          if (length(options)) warning('Parameter `options` ignored.', call. = FALSE)
-          output_dir = xfun::sans_ext(output)
-          if (dir.exists(output_dir))
-            stop("Directory ", output_dir, " already exists.", call. = FALSE)
-          dir.create(output_dir)
-        } else {
-          opts <<- merge_list(list(clip = clip), opts)
-        }
+        opts <<- merge_list(list(clip = clip), opts)
 
         device_metrics = list(
           width = ceiling(opts$clip$x + opts$clip$width),
@@ -438,23 +418,30 @@ print_page = function(
 
         params = opts
         params$format = format
+        params$fromSurface = FALSE
 
         # adapt the origin after scrolling
-        if (!is.null(msg$result$result)) { # msg$result$result is only present after scrollIntoView()
+        # msg$result$result is only present after page.scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset})
+        if (!is.null(msg$result$result)) {
           origin = jsonlite::fromJSON(msg$result$result$value)
           params$clip$x = origin$x
           params$clip$y = origin$y
         }
+
+        if (verbose >= 1 && payload$pagedjs) message(
+          'Screenshot captured with the following parameters:\n',
+          paste0(deparse(params), collapse = '\n ')
+        )
 
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
         )))
       },
       {
-        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
+        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file, repeat screenshot if needed
         screenshots_count <<- screenshots_count + 1L
         if (payload$pagedjs && !identical(format, 'pdf')) {
-          outfile = file.path(xfun::sans_ext(output), xfun::with_ext(paste0("page-", screenshots_count), format))
+          outfile = file.path(output_dir, xfun::with_ext(paste0("page-", screenshots_count), format))
         } else {
           outfile = output
         }
@@ -462,10 +449,10 @@ print_page = function(
         if (screenshots_count < payload$length) {
           ws$send(to_json(list(
             id = 14, method = 'Runtime.evaluate',
-            params = list(expression = sprintf('document.querySelector("#page-%i").scrollIntoView();JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});', screenshots_count + 1L))
+            params = list(expression = sprintf('document.querySelector("#page-%i > .pagedjs_sheet").scrollIntoView({behavior:"instant"});JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});', screenshots_count + 1L))
           )))
         } else {
-          resolve(if (payload$pagedjs) xfun::sans_ext(output) else output)
+          resolve(if (payload$pagedjs) output_dir else output)
           token$done = TRUE
         }
       }
@@ -501,9 +488,22 @@ print_page = function(
             id = 15, params = opts, method = 'Page.printToPDF'
           )))
         } else {
+          if (payload$pagedjs) {
+            if (dir.exists(output_dir)) {
+              token$error = paste("Directory", output_dir, "already exists.")
+              reject(token$error)
+              return()
+            }
+            dir.create(output_dir)
+            if (!identical(selector, 'body'))
+              warning('Parameter `selector` ignored', call. = FALSE)
+            if (length(options))
+              warning('Parameter `options` ignored.', call. = FALSE)
+            opts <<- list()
+          }
           ws$send(to_json(list(
-            id = 9, method = 'Emulation.setEmulatedMedia',
-            params = list(media = 'print')
+            id = if (payload$pagedjs) 13 else 9, params = list(media = 'print'),
+            method = 'Emulation.setEmulatedMedia'
           )))
         }
       }
