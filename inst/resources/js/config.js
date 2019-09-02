@@ -70,7 +70,6 @@
             }
           }`
         );
-
       }
 
       // call the binding to signal to the R session that Paged.js has finished
