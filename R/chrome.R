@@ -512,6 +512,9 @@ print_page = function(
           if (!identical(selector, 'body'))
             warning('Parameter `selector` ignored', call. = FALSE)
         }
+        if (verbose >= 1) {
+          message('Using emulated media "', media, '"')
+        }
         ws$send(to_json(list(
           id = if (payload$pagedjs) 13 else 9, params = list(media = media),
           method = 'Emulation.setEmulatedMedia'
