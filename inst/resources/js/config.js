@@ -48,10 +48,10 @@
     // run previous PagedConfig.after function if defined
     if (afterPaged) afterPaged(flow);
 
-    // pagedownListener is a binding added by the chrome_print function
-    // this binding exists only when chrome_print opens the html file
+    // pagedownListener is a binding added by the chrome_print() function (see R/chrome.R)
+    // this binding exists only when chrome_print() opens the html file
     if (window.pagedownListener) {
-      // here, we know that the html file is opened by chrome_print for printing
+      // here, we know that the html file is opened by chrome_print() for printing
       const width = flow.pages[0].element.offsetWidth; // in pixels
       const height = flow.pages[0].element.offsetHeight; // in pixels
       const {width: widthUnit, height: heightUnit} = flow.size; // user defined
