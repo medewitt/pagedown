@@ -512,7 +512,7 @@ print_page = function(
         }
         Sys.sleep(wait)
         if (identical(format, 'pdf')) {
-          payload$length <<- 1L
+          payload$length <<- 1L # we just want a single file
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
             id = 15, params = opts, method = 'Page.printToPDF'
