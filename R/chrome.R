@@ -369,8 +369,8 @@ print_page = function(
       },
       # Command #8 received - No callback: wait the Runtime.bindingCalled event fires
       NULL,
-      # The following commands (command #10 to #15) are only called for screenshots
-      # The commands #10 to #13 are only called for screenshots of NON html_paged documents
+      # The following commands (command #10 to #15) are only sent for screenshots
+      # The commands #10 to #13 are only sent for screenshots of NON html_paged documents
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = 'DOM.enable'))),
       # Command #10 received -> callback: command #11 DOM.getDocument
