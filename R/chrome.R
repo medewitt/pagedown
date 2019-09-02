@@ -344,7 +344,12 @@ print_page = function(
       # Command #4 received -> callback: command #5 Page.addScriptToEvaluateOnNewDocument
       ws$send(to_json(list(
         id = 5, method = "Page.addScriptToEvaluateOnNewDocument",
-        params = list(source = paste0(readLines(pkg_resource('js', 'chrome_print.js')), collapse = ""))
+        params = list(source = paste0(
+          collapse = "",
+          c(readLines(pkg_resource('js', 'chrome_print.js')),
+            sprintf('window.pagedownFormat = "%s";', format)
+          )
+        ))
       ))),
       # Command #5 received -> callback: command #6 Page.Navigate
       ws$send(to_json(list(
@@ -396,7 +401,7 @@ print_page = function(
         # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
         if (payload$pagedjs) {
           origin = list(x = 0, y = 0)
-          dims = payload[c('width', 'height')]
+          dims = list(width = scale * payload$width, height = scale * payload$height)
         } else {
           coords = msg$result$model[[box_model]]
           origin = as.list(coords[1:2])
@@ -417,6 +422,8 @@ print_page = function(
           deviceScaleFactor = 1,
           mobile = FALSE
         )
+
+        if (payload$pagedjs) device_metrics$scale = scale
 
         ws$send(to_json(list(
           id = 14, params = device_metrics,
@@ -443,7 +450,7 @@ print_page = function(
         }
         if (verbose >= 1) message(
           'Screenshot captured with the following value for the `options` parameter:\n',
-          paste0(deparse(show_options(params)), collapse = '\n ')
+          paste0(deparse(params), collapse = '\n ')
         )
         ws$send(to_json(list(
           id = 15, params = params, method = 'Page.captureScreenshot'
@@ -497,7 +504,11 @@ print_page = function(
         # in the function window.PagedConfig.after
         payload <<- jsonlite::fromJSON(msg$params$payload)
         if (payload$pagedjs && verbose >= 1) {
-          message('Rendered ', payload$length, ' pages in ', payload$elapsedtime, ' milliseconds.')
+          message(
+            'Rendered ', payload$length, ' pages in ', payload$elapsedtime, ' milliseconds.\n',
+            'width: ', payload$size$width$value, payload$size$width$unit,
+            ', height: ', payload$size$height$value, payload$size$height$unit
+          )
         }
         Sys.sleep(wait)
         if (identical(format, 'pdf')) {

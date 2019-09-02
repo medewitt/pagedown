@@ -51,14 +51,26 @@
     // pagedownListener is a binding added by the chrome_print function
     // this binding exists only when chrome_print opens the html file
     if (window.pagedownListener) {
-      // the html file is opened for printing
+      // here, we know that the html file is opened by chrome_print for printing
+      const width = flow.pages[0].element.offsetWidth; // in pixels
+      const height = flow.pages[0].element.offsetHeight; // in pixels
+      const {width: widthUnit, height: heightUnit} = flow.size; // user defined
+
+      // if the user wants to take screenshots (png or jpeg),
+      // force the dimensions to pixels, otherwise we can have troubles when scaling
+      if (window.pagedownFormat !== 'pdf') {
+        flow.pagesArea.style.setProperty('--pagedjs-width', width + 'px');
+        flow.pagesArea.style.setProperty('--pagedjs-height', height + 'px');
+      }
+
       // call the binding to signal to the R session that Paged.js has finished
       pagedownListener(JSON.stringify({
         pagedjs: true,
-        elapsedtime: flow.performance,
-        width: flow.pages[0].pagebox.offsetWidth,
-        height: flow.pages[0].pagebox.offsetHeight,
-        length: flow.total
+        length: flow.total, // number of pages
+        elapsedtime: flow.performance, // in milliseconds
+        width: width, // in pixels
+        height: height, // in pixels
+        size: {width: widthUnit, height: heightUnit} // user defined
       }));
       return;
     }
