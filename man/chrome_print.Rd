@@ -38,9 +38,12 @@ explicitly provided.}
 \code{https://chromedevtools.github.io/devtools-protocol/tot/Page#method-captureScreenshot}
  for options for screenshots. Note that for PDF output, we have changed the
 defaults of \code{printBackground} (\code{TRUE}) and
-\code{preferCSSPageSize} (\code{TRUE}) in this function.}
+\code{preferCSSPageSize} (\code{TRUE}) in this function and for screenshots
+of \code{\link{html_paged}} documents, we have changed the defaults of
+\code{fromSurface} (\code{FALSE}).}
 
-\item{selector}{A CSS selector used when capturing a screenshot.}
+\item{selector}{A CSS selector used when capturing a screenshot. Ignored
+for screenshots of \code{\link{html_paged}} documents.}
 
 \item{box_model}{The CSS box model used when capturing a screenshot.}
 

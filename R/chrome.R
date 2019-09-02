@@ -25,8 +25,11 @@
 #'   \code{https://chromedevtools.github.io/devtools-protocol/tot/Page#method-captureScreenshot}
 #'    for options for screenshots. Note that for PDF output, we have changed the
 #'   defaults of \code{printBackground} (\code{TRUE}) and
-#'   \code{preferCSSPageSize} (\code{TRUE}) in this function.
-#' @param selector A CSS selector used when capturing a screenshot.
+#'   \code{preferCSSPageSize} (\code{TRUE}) in this function and for screenshots
+#'   of \code{\link{html_paged}} documents, we have changed the defaults of
+#'   \code{fromSurface} (\code{FALSE}).
+#' @param selector A CSS selector used when capturing a screenshot. Ignored
+#'   for screenshots of \code{\link{html_paged}} documents.
 #' @param box_model The CSS box model used when capturing a screenshot.
 #' @param scale The scale factor used for screenshot.
 #' @param work_dir Name of headless Chrome working directory. If the default
@@ -403,7 +406,10 @@ print_page = function(
         }
 
         clip = c(origin, dims, list(scale = scale))
-        opts <<- merge_list(list(clip = clip, format = format), opts)
+        opts <<- merge_list(
+          list(clip = clip, format = format, fromSurface = !payload$pagedjs),
+          opts
+        )
 
         device_metrics = list(
           width = ceiling(opts$clip$x + opts$clip$width),
