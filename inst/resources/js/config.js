@@ -61,6 +61,16 @@
       if (window.pagedownFormat !== 'pdf') {
         flow.pagesArea.style.setProperty('--pagedjs-width', width + 'px');
         flow.pagesArea.style.setProperty('--pagedjs-height', height + 'px');
+        insertCSS(`
+          @media print {
+            .pagedjs_pages > .pagedjs_page {
+              height: var(--pagedjs-height) !important;
+              min-height: var(--pagedjs-height) !important;
+              max-height: var(--pagedjs-height) !important;
+            }
+          }`
+        );
+
       }
 
       // call the binding to signal to the R session that Paged.js has finished
