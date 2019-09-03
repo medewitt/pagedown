@@ -42,3 +42,10 @@
 
   window.pagedownReady = Promise.all([MathJaxReady, HTMLWidgetsReady, document.fonts.ready]);
 })();
+
+window.pagedownScroll = (i) => {
+  let el = document.querySelector("#page-" + i + " > .pagedjs_sheet");
+  el.scrollIntoView({behavior:"instant"});
+  let rect = el.getBoundingClientRect();
+  return JSON.stringify({x: window.pageXOffset + rect.x, y: window.pageYOffset + rect.y});
+};

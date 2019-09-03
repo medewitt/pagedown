@@ -473,11 +473,7 @@ print_page = function(
         screenshots_count <<- screenshots_count + 1L
         ws$send(to_json(list(
           id = 14, method = 'Runtime.evaluate',
-          params = list(expression = paste0(
-            sprintf('document.querySelector("#page-%i>.pagedjs_sheet")', screenshots_count),
-                            '.scrollIntoView({behavior:"instant"});',
-                    'JSON.stringify({x:window.pageXOffset,y:window.pageYOffset});'
-          ))
+          params = list(expression = sprintf('pagedownScroll(%i);', screenshots_count))
         )))
       }
     )

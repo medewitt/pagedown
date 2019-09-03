@@ -70,6 +70,10 @@
             }
           }`
         );
+        let div = document.createElement('div');
+        div.style.minWidth = 'var(--pagedjs-width)';
+        div.style.minHeight = '100%';
+        document.querySelector('.pagedjs_pages').append(div);
       }
 
       // call the binding to signal to the R session that Paged.js has finished
