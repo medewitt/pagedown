@@ -73,10 +73,11 @@
       }
 
       // call the binding to signal to the R session that Paged.js has finished
-      pagedownListener(JSON.stringify({
+      const payload = {
         pages: flow.total,
         elapsedtime: flow.performance
-      }));
+      };
+      pagedownListener(JSON.stringify(payload));
       return;
     }
     if (sessionStorage.getItem('pagedown-scroll')) {

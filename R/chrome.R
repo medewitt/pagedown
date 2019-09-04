@@ -26,7 +26,8 @@
 #'    for options for screenshots. Note that for PDF output, we have changed the
 #'   defaults of \code{printBackground} (\code{TRUE}) and
 #'   \code{preferCSSPageSize} (\code{TRUE}) in this function.
-#' @param selector A CSS selector used when capturing a screenshot.
+#' @param selector A CSS selector used when capturing a screenshot. Ignored
+#'   for screenshots of \code{\link{html_paged}} documents.
 #' @param box_model The CSS box model used when capturing a screenshot.
 #' @param scale The scale factor used for screenshot.
 #' @param work_dir Name of headless Chrome working directory. If the default
@@ -172,7 +173,7 @@ chrome_print = function(
     later::run_now()
   }
 
-  invisible(output)
+  invisible(token$out)
 }
 
 #' Find Google Chrome or Chromium in the system
@@ -301,8 +302,14 @@ print_page = function(
   selector, box_model, scale, resolve, reject, media
 ) {
   # init values
-  coords = NULL
   pagedjs = NULL # filled when command #7 received
+  document_element_node_id = NULL # filled when command #11 received
+  coords = NULL # filled when command #13 received
+  force(selector)
+  screenshots_count = 1
+  screenshots_target = 1
+  # only used for screenshots of Paged.js documents:
+  output_dir = paste0(xfun::sans_ext(output), '_screenshots')
 
   ws$onOpen(function(event) {
     ws$send(to_json(list(id = 1, method = "Runtime.enable")))
@@ -362,32 +369,36 @@ print_page = function(
         if (!pagedjs) {
           ws$send(to_json(list(
             id = 8, method = 'Runtime.evaluate',
-            params = list(expression = 'pagedownReady.then(() => {pagedownListener("")}')
+            params = list(expression = 'pagedownReady.then(() => {pagedownListener("{}")}')
           )))
         }
       },
       # Command #8 received - No callback
       NULL,
+      # Commands #9 to #14 are only used for screenshots
       # Command #9 received -> callback: command #10 DOM.enable
       ws$send(to_json(list(id = 10, method = 'DOM.enable'))),
       # Command #10 received -> callback: command #11 DOM.getDocument
       ws$send(to_json(list(id = 11, method = 'DOM.getDocument'))),
-      # Command #11 received -> callback: command #12 DOM.querySelector
-      ws$send(to_json(list(
-        id = 12, method = 'DOM.querySelector',
-        params = list(nodeId = msg$result$root$nodeId, selector = selector)
-      ))),
+      {
+        # Command #11 received -> callback: command #12 DOM.querySelector
+        document_element_node_id <<- msg$result$root$nodeId
+        ws$send(to_json(list(
+          id = 12, method = 'DOM.querySelector',
+          params = list(nodeId = document_element_node_id, selector = selector)
+        )))
+      },
       {
         # Command 12 received -> callback: command #13 DOM.getBoxModel
         if (msg$result$nodeId == 0) {
-          token$error <- 'No element in the HTML page corresponds to the `selector` value.'
+          token$error <- paste0('No element in the HTML page corresponds to the `selector` value: "', selector, '".')
           reject(token$error)
-        } else {
-          ws$send(to_json(list(
-            id = 13, method = 'DOM.getBoxModel',
-            params = list(nodeId = msg$result$nodeId)
-          )))
+          return()
         }
+        ws$send(to_json(list(
+          id = 13, method = 'DOM.getBoxModel',
+          params = list(nodeId = msg$result$nodeId)
+        )))
       },
       {
         # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
@@ -426,9 +437,29 @@ print_page = function(
       },
       {
         # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
-        writeBin(jsonlite::base64_dec(msg$result$data), output)
-        resolve(output)
-        token$done = TRUE
+        if (pagedjs && !identical(format, 'pdf')) {
+          outfile = file.path(output_dir, xfun::with_ext(paste0("page-", screenshots_count), format))
+        } else {
+          outfile = output
+        }
+        writeBin(jsonlite::base64_dec(msg$result$data), outfile)
+        if (screenshots_count >= screenshots_target) {
+          if (pagedjs && !identical(format, 'pdf')) {
+            resolve(output_dir)
+            token$out = output_dir
+          } else {
+            resolve(output)
+            token$out = output
+          }
+          token$done = TRUE
+          return()
+        }
+        screenshots_count <<- screenshots_count + 1
+        ws$send(to_json(list(
+          id = 12, method = 'DOM.querySelector',
+          params = list(nodeId = document_element_node_id, selector = paste0('#page-', screenshots_count))
+        )))
+
       }
     )
     if (!is.null(method)) {
@@ -451,10 +482,11 @@ print_page = function(
         Sys.sleep(wait)
         opts = as.list(options)
         payload = jsonlite::fromJSON(msg$params$payload)
-        if (verbose >= 1 && pagedjs) {
+        if (pagedjs && verbose >= 1) {
+          # see the payload object in inst/resources/js/config.js
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
-        if (format == 'pdf') {
+        if (identical(format, 'pdf')) {
           if (!identical(media, 'print'))
             warning('Emulated media forced to "print" by Chrome', call. = FALSE)
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
@@ -462,6 +494,18 @@ print_page = function(
             id = 15, params = opts, method = 'Page.printToPDF'
           )))
           return()
+        }
+        if (pagedjs) {
+          if (dir.exists(output_dir)) {
+            token$error = paste('Directory', output_dir, 'already exists.')
+            reject(token$error)
+            return()
+          }
+          dir.create(output_dir)
+          screenshots_target <<- payload$pages
+          if (!identical(selector, 'body'))
+            warning('Parameter `selector` ignored.', call. = FALSE)
+          selector <<- '#page-1'
         }
         if (verbose >= 1) {
           message('Using emulated media "', media, '"')
