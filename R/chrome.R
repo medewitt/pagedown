@@ -294,6 +294,7 @@ print_page = function(
 ) {
   # init values
   coords = NULL
+  pagedjs = NULL # filled when command #7 received
 
   ws$onOpen(function(event) {
     ws$send(to_json(list(id = 1, method = "Runtime.enable")))
@@ -346,10 +347,11 @@ print_page = function(
         # Command #7 received - Test if the html document uses the paged.js polyfill
         # if not, call the binding when HTMLWidgets, MathJax and fonts are ready
         # (see inst/resources/js/chrome_print.js)
-        if (!isTRUE(msg$result$result$value)) {
+        pagedjs <<- isTRUE(msg$result$result$value)
+        if (!pagedjs) {
           ws$send(to_json(list(
-            id = 8, method = "Runtime.evaluate",
-            params = list(expression = "pagedownReady.then(() => {pagedownListener('{\"pagedjs\":false}');})")
+            id = 8, method = 'Runtime.evaluate',
+            params = list(expression = 'pagedownReady.then(() => {pagedownListener("")}')
           )))
         }
       },
@@ -436,7 +438,7 @@ print_page = function(
         Sys.sleep(wait)
         opts = as.list(options)
         payload = jsonlite::fromJSON(msg$params$payload)
-        if (verbose >= 1 && payload$pagedjs) {
+        if (verbose >= 1 && pagedjs) {
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         if (format == 'pdf') {

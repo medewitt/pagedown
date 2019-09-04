@@ -54,7 +54,6 @@
       // the html file is opened for printing
       // call the binding to signal to the R session that Paged.js has finished
       pagedownListener(JSON.stringify({
-        pagedjs: true,
         pages: flow.total,
         elapsedtime: flow.performance
       }));
