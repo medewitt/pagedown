@@ -330,8 +330,11 @@ print_page = function(
       ws$send(to_json(list(id = 4, method  = "Network.enable"))),
       # Command #4 received -> callback: command #5 Page.addScriptToEvaluateOnNewDocument
       ws$send(to_json(list(
-        id = 5, method = "Page.addScriptToEvaluateOnNewDocument",
-        params = list(source = paste0(readLines(pkg_resource('js', 'chrome_print.js')), collapse = ""))
+        id = 5, method = 'Page.addScriptToEvaluateOnNewDocument',
+        params = list(source = paste0(collapse = '', c(
+          readLines(pkg_resource('js', 'chrome_print.js')),
+          sprintf('window.pagedownFormat="%s";', format)
+        )))
       ))),
       # Command #5 received -> callback: command #6 Page.Navigate
       ws$send(to_json(list(
