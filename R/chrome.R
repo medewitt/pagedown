@@ -42,6 +42,8 @@
 #' @param async Execute \code{chrome_print()} asynchronously? If \code{TRUE},
 #'   \code{chrome_print()} returns a \code{\link[promises]{promise}} value (the
 #'   \pkg{promises} package has to be installed in this case).
+#' @param media Emulated media. This parameter is internally forced by Chrome
+#'   to \code{"print"} when the parameter \code{format} is \code{"pdf"}.
 #' @references
 #' \url{https://developers.google.com/web/updates/2017/04/headless-chrome}
 #' @return Path of the output file (invisibly). If \code{async} is \code{TRUE}, this
@@ -51,7 +53,8 @@ chrome_print = function(
   input, output = xfun::with_ext(input, format), wait = 2, browser = 'google-chrome',
   format = c('pdf', 'png', 'jpeg'), options = list(), selector = 'body',
   box_model = c('border', 'content', 'margin', 'padding'), scale = 1, work_dir = tempfile(),
-  timeout = 30, extra_args = c('--disable-gpu'), verbose = 0, async = FALSE
+  timeout = 30, extra_args = c('--disable-gpu'), verbose = 0, async = FALSE,
+  media = c('print', 'screen')
 ) {
   if (missing(browser)) browser = find_chrome() else {
     if (!file.exists(browser)) browser = Sys.which(browser)
@@ -129,6 +132,7 @@ chrome_print = function(
     warning('For "pdf" format, arguments `selector`, `box_model` and `scale` are ignored.', call. = FALSE)
 
   box_model = match.arg(box_model)
+  media = match.arg(media)
 
   pr = NULL
   res_fun = function(value) {} # default: do nothing
@@ -150,7 +154,10 @@ chrome_print = function(
 
   t0 = Sys.time(); token = new.env(parent = emptyenv())
   on.exit(close_ws())
-  print_page(ws, url, output2, wait, verbose, token, format, options, selector, box_model, scale, res_fun, rej_fun)
+  print_page(
+    ws, url, output2, wait, verbose, token, format, options,
+    selector, box_model, scale, res_fun, rej_fun, media
+  )
 
   if (async) {
     on.exit()
@@ -240,6 +247,7 @@ is_remote_protocol_ok = function(debug_port,
 
   required_commands = list(
     DOM = c('enable', 'getBoxModel', 'getDocument', 'querySelector'),
+    Emulation = c('setEmulatedMedia'),
     Network = c('enable'),
     Page = c('addScriptToEvaluateOnNewDocument',
              'captureScreenshot',
@@ -289,8 +297,8 @@ get_entrypoint = function(debug_port) {
 }
 
 print_page = function(
-  ws, url, output, wait, verbose, token, format,
-  options = list(), selector, box_model, scale, resolve, reject
+  ws, url, output, wait, verbose, token, format, options = list(),
+  selector, box_model, scale, resolve, reject, media
 ) {
   # init values
   coords = NULL
@@ -360,27 +368,29 @@ print_page = function(
       },
       # Command #8 received - No callback
       NULL,
-      # Command #9 received -> callback: command #10 DOM.getDocument
-      ws$send(to_json(list(id = 10, method = "DOM.getDocument"))),
-      # Command #10 received -> callback: command #11 DOM.querySelector
+      # Command #9 received -> callback: command #10 DOM.enable
+      ws$send(to_json(list(id = 10, method = 'DOM.enable'))),
+      # Command #10 received -> callback: command #11 DOM.getDocument
+      ws$send(to_json(list(id = 11, method = 'DOM.getDocument'))),
+      # Command #11 received -> callback: command #12 DOM.querySelector
       ws$send(to_json(list(
-        id = 11, method = "DOM.querySelector",
+        id = 12, method = 'DOM.querySelector',
         params = list(nodeId = msg$result$root$nodeId, selector = selector)
       ))),
       {
-        # Command 11 received -> callback: command #12 DOM.getBoxModel
+        # Command 12 received -> callback: command #13 DOM.getBoxModel
         if (msg$result$nodeId == 0) {
           token$error <- 'No element in the HTML page corresponds to the `selector` value.'
           reject(token$error)
         } else {
           ws$send(to_json(list(
-            id = 12, method = "DOM.getBoxModel",
+            id = 13, method = 'DOM.getBoxModel',
             params = list(nodeId = msg$result$nodeId)
           )))
         }
       },
       {
-        # Command 12 received -> callback: command #13 Emulation.setDeviceMetricsOverride
+        # Command 13 received -> callback: command #14 Emulation.setDeviceMetricsOverride
         coords <<- msg$result$model[[box_model]]
         device_metrics = list(
           width = ceiling(coords[5]),
@@ -389,11 +399,11 @@ print_page = function(
           mobile = FALSE
         )
         ws$send(to_json(list(
-          id = 13, params = device_metrics, method = 'Emulation.setDeviceMetricsOverride'
+          id = 14, params = device_metrics, method = 'Emulation.setDeviceMetricsOverride'
         )))
       },
       {
-        # Command #13 received -> callback: command #14 Page.captureScreenshot
+        # Command #14 received -> callback: command #15 Page.captureScreenshot
         opts = as.list(options)
 
         origin = as.list(coords[1:2])
@@ -411,11 +421,11 @@ print_page = function(
         opts$format = format
 
         ws$send(to_json(list(
-          id = 14, params = opts, method = 'Page.captureScreenshot'
+          id = 15, params = opts, method = 'Page.captureScreenshot'
         )))
       },
       {
-        # Command #14 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
+        # Command #15 received (printToPDF or captureScreenshot) -> callback: save to file & close Chrome
         writeBin(jsonlite::base64_dec(msg$result$data), output)
         resolve(output)
         token$done = TRUE
@@ -445,13 +455,21 @@ print_page = function(
           message("Rendered ", payload$pages, " pages in ", payload$elapsedtime, " milliseconds.")
         }
         if (format == 'pdf') {
+          if (!identical(media, 'print'))
+            warning('Emulated media forced to "print" by Chrome', call. = FALSE)
           opts = merge_list(list(printBackground = TRUE, preferCSSPageSize = TRUE), opts)
           ws$send(to_json(list(
-            id = 14, params = opts, method = 'Page.printToPDF'
+            id = 15, params = opts, method = 'Page.printToPDF'
           )))
-        } else {
-          ws$send(to_json(list(id = 9, method = "DOM.enable")))
+          return()
         }
+        if (verbose >= 1) {
+          message('Using emulated media "', media, '"')
+        }
+        ws$send(to_json(list(
+          id = 9, params = list(media = media),
+          method = 'Emulation.setEmulatedMedia'
+        )))
       }
     }
   })
