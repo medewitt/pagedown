@@ -123,9 +123,9 @@ if (customElements) {customElements.define('autoscaling-iframe',
         let heightScaleFactor = this.clientHeight / contentHeight;
         let scaleFactor = Math.min(widthScaleFactor, heightScaleFactor);
         scaleFactor = Math.floor(scaleFactor * 1e6) / 1e6;
-        iframe.style.transform = "scale(" + scaleFactor + ")";
-        iframe.width = contentWidth;
-        iframe.height = contentHeight;
+        iframe.style.transform = "scale(" + .95 + ")";
+        iframe.width = 600;
+        iframe.height = 400;
 
         this.style.width = iframe.getBoundingClientRect().width + 'px';
         this.style.height = iframe.getBoundingClientRect().height + 'px';
