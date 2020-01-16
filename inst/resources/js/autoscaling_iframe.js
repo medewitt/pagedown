@@ -123,9 +123,17 @@ if (customElements) {customElements.define('autoscaling-iframe',
         let heightScaleFactor = this.clientHeight / contentHeight;
         let scaleFactor = Math.min(widthScaleFactor, heightScaleFactor);
         scaleFactor = Math.floor(scaleFactor * 1e6) / 1e6;
-        iframe.style.transform = "scale(" + .95 + ")";
-        iframe.width = 600;
-        iframe.height = 400;
+
+        //JW's check to see if the container is a DT:datatable or not
+         if (iframe.contentDocument.title === "datatables") {
+          iframe.style.transform = "scale(" + scaleFactor + ")"; //.95
+          iframe.width = contentWidth; //600
+          iframe.height = contentHeight; //400
+        } else {
+          iframe.style.transform = "scale(" + 0.95 + ")"; //.95
+          iframe.width = 600; //600
+          iframe.height = 400; //400
+        }
 
         this.style.width = iframe.getBoundingClientRect().width + 'px';
         this.style.height = iframe.getBoundingClientRect().height + 'px';
