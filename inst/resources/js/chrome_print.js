@@ -1,4 +1,23 @@
-(() => {
+{
+  let RevealReady = new Promise((resolve) => {
+    window.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        if (window.Reveal) {
+          if (!window.location.search.match( /print-pdf/gi )) {
+            window.location.search = 'print-pdf';
+            return;
+          }
+          Reveal.addEventListener('ready', resolve);
+          if (Reveal.isReady()) resolve();
+        } else {
+          resolve();
+        }
+      },
+      {capture: true, once: true}
+    );
+  });
+
   let HTMLWidgetsReady = new Promise((resolve) => {
     window.addEventListener(
       'DOMContentLoaded',
@@ -40,6 +59,7 @@
     );
   });
 
+<<<<<<< HEAD
   let responsiveIFramesReady = new Promise(resolve => {
     window.addEventListener('load', () => {
       let responsiveIFrames = document.getElementsByTagName('autoscaling-iframe');
@@ -49,3 +69,12 @@
 
   window.pagedownReady = Promise.all([MathJaxReady, HTMLWidgetsReady, document.fonts.ready, responsiveIFramesReady]);
 })();
+=======
+  window.pagedownReady = Promise.all([
+    RevealReady,
+    MathJaxReady,
+    HTMLWidgetsReady,
+    document.fonts.ready
+  ]);
+}
+>>>>>>> 3374a89bea43024a938d83f283431ab60c70d7b0
