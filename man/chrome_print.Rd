@@ -18,12 +18,8 @@ chrome_print(
   timeout = 30,
   extra_args = c("--disable-gpu"),
   verbose = 0,
-<<<<<<< HEAD
-  async = FALSE
-=======
   async = FALSE,
   encoding
->>>>>>> 3374a89bea43024a938d83f283431ab60c70d7b0
 )
 }
 \arguments{

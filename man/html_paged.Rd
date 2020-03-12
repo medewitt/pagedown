@@ -9,13 +9,9 @@ html_paged(
   css = c("default-fonts", "default-page", "default"),
   theme = NULL,
   template = pkg_resource("html", "paged.html"),
-<<<<<<< HEAD
-  csl = NULL
-=======
   csl = NULL,
   front_cover = NULL,
   back_cover = NULL
->>>>>>> 3374a89bea43024a938d83f283431ab60c70d7b0
 )
 }
 \arguments{
