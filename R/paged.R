@@ -131,8 +131,8 @@ pagedown_dependency = function(css = NULL, js = FALSE, .test = FALSE) {
 }
 
 html_format = function(
-  ..., css, template, self_contained = TRUE, pandoc_args = NULL, .dependencies = NULL,
-  .pagedjs = FALSE, .pandoc_args = NULL
+  ..., self_contained = TRUE, mathjax = 'default', css, template, pandoc_args = NULL,
+  .dependencies = NULL, .pagedjs = FALSE, .pandoc_args = NULL, .test = FALSE
 ) {
   if (!identical(mathjax, 'local')) {
     if (identical(mathjax, 'default'))
@@ -164,8 +164,8 @@ html_format = function(
     ))
   }
   format = html_document2(
-    ..., css = css, template = template,
-    self_contained = self_contained, pandoc_args = c(.pandoc_args, pandoc_args)
+    ..., self_contained = self_contained, mathjax = mathjax, css = css,
+    template = template, pandoc_args = pandoc_args
   )
   if (isTRUE(.pagedjs)) format$knitr$opts_chunk[['render']] = paged_render(self_contained)
   iframe_file(reset = TRUE)

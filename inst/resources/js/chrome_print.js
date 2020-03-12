@@ -59,7 +59,6 @@
     );
   });
 
-<<<<<<< HEAD
   let responsiveIFramesReady = new Promise(resolve => {
     window.addEventListener('load', () => {
       let responsiveIFrames = document.getElementsByTagName('autoscaling-iframe');
@@ -67,14 +66,11 @@
     });
   });
 
-  window.pagedownReady = Promise.all([MathJaxReady, HTMLWidgetsReady, document.fonts.ready, responsiveIFramesReady]);
-})();
-=======
   window.pagedownReady = Promise.all([
     RevealReady,
     MathJaxReady,
     HTMLWidgetsReady,
-    document.fonts.ready
+    document.fonts.ready,
+    responsiveIFramesReady
   ]);
 }
->>>>>>> 3374a89bea43024a938d83f283431ab60c70d7b0
