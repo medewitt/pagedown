@@ -131,7 +131,7 @@ if (customElements) {customElements.define('autoscaling-iframe',
           iframe.height = contentHeight; //400
         } else {
           iframe.style.transform = "scale(" + 0.95 + ")"; //.95
-          iframe.width = contentWidth/1.6; //600
+          iframe.width = 600; //600
           iframe.height = 400; //400
         }
 
